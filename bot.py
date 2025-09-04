@@ -7,9 +7,10 @@ import json
 from datetime import datetime, timedelta, timezone
 
 # Files
-ACCOUNTS_FILE = "token.txt"          # JWT tokens, one per line (still needed for account order)
+ACCOUNTS_FILE = "token.txt"          # JWT tokens, one per line
 USERAGENT_FILE = "user_agents.txt"   # User-Agent strings, one per line
 STREAK_TOKENS_FILE = "streak_tokens.txt"  # Long-lived streak tokens, one per line
+ACCOUNT_UA_FILE = "account_user_agents.json"  # New file to store account-to-User-Agent mapping
 
 # Cloudflare bypass session
 scraper = cloudscraper.create_scraper()
@@ -21,6 +22,26 @@ def load_lines(file_path):
         return []
     with open(file_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
+
+def load_account_user_agents():
+    if not os.path.exists(ACCOUNT_UA_FILE):
+        return {}
+    with open(ACCOUNT_UA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_account_user_agents(account_ua_map):
+    with open(ACCOUNT_UA_FILE, "w", encoding="utf-8") as f:
+        json.dump(account_ua_map, f, indent=4)
+
+def assign_user_agent(auth_query, user_agents, account_ua_map):
+    # If account already has a User-Agent, return it
+    if auth_query in account_ua_map:
+        return account_ua_map[auth_query]
+    # Assign a new random User-Agent and save it
+    user_agent = random.choice(user_agents)
+    account_ua_map[auth_query] = user_agent
+    save_account_user_agents(account_ua_map)
+    return user_agent
 
 def build_headers(auth_query, user_agent):
     return {
@@ -119,9 +140,10 @@ def claim_once(auth_query, user_agent, streak_token=None):
 
 # ===================== Runner =====================
 def run_all_accounts(accounts, user_agents, streak_tokens):
+    account_ua_map = load_account_user_agents()  # Load User-Agent mappings
     for idx, auth_query in enumerate(accounts, 1):
-        user_agent = user_agents[idx - 1] if idx <= len(user_agents) else random.choice(user_agents)
         streak_token = streak_tokens[idx - 1] if idx <= len(streak_tokens) else None
+        user_agent = assign_user_agent(auth_query, user_agents, account_ua_map)  # Assign or retrieve User-Agent
         print(f"\n=== Account {idx} ===")
         print(f"Using User-Agent: {user_agent}")
         claim_once(auth_query, user_agent, streak_token)
