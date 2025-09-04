@@ -10,7 +10,16 @@ from datetime import datetime, timedelta, timezone
 ACCOUNTS_FILE = "token.txt"          # JWT tokens, one per line
 USERAGENT_FILE = "user_agents.txt"   # User-Agent strings, one per line
 STREAK_TOKENS_FILE = "streak_tokens.txt"  # Long-lived streak tokens, one per line
-ACCOUNT_UA_FILE = "account_user_agents.json"  # New file to store account-to-User-Agent mapping
+ACCOUNT_UA_FILE = "account_user_agents.json"  # Account-to-User-Agent mapping
+
+# Default User-Agent list (used if user_agents.txt is missing or empty)
+DEFAULT_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+]
 
 # Cloudflare bypass session
 scraper = cloudscraper.create_scraper()
@@ -37,8 +46,12 @@ def assign_user_agent(auth_query, user_agents, account_ua_map):
     # If account already has a User-Agent, return it
     if auth_query in account_ua_map:
         return account_ua_map[auth_query]
-    # Assign a new random User-Agent and save it
-    user_agent = random.choice(user_agents)
+    
+    # Use user_agents from file if available, otherwise use default
+    available_user_agents = user_agents if user_agents else DEFAULT_USER_AGENTS
+    
+    # Assign a random User-Agent and save it
+    user_agent = random.choice(available_user_agents)
     account_ua_map[auth_query] = user_agent
     save_account_user_agents(account_ua_map)
     return user_agent
